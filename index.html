@@ -1447,6 +1447,18 @@ function init(){
   setTimeout(renderFinances,50);
 }
 init();
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => console.log('✅ SW registered'))
+      .catch(err => console.log('❌ SW registration failed'));
+  }
+  // Initialize app
+  window.addEventListener('load', () => {
+    load(); applyTheme(); renderUnitPills(); renderStats();
+    renderCalendar(); renderBkTable(); renderFinances(); renderSettings();
+  });
+</script>
 </script>
 </body>
 </html>
