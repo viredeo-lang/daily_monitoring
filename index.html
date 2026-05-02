@@ -52,8 +52,8 @@
   --surface2: #1E2555;
   --border:   rgba(100,130,255,0.16);
   --text:     #EDE8D5;
-  --text2:    #A09060;
-  --text3:    #5A5030;
+  --text2:    #D4C89A;
+  --text3:    #A89E78;
   --gold:     #F5A623;
   --gold2:    #FFD166;
   --gold3:    #2A200A;
@@ -184,7 +184,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:260px;
   width:24px;height:24px;display:flex;align-items:center;justify-content:center;
   border-radius:50%;margin-bottom:2px;}
 .cal-cell.today .dnum{background:var(--gold);color:white;box-shadow:0 3px 8px rgba(200,150,0,0.45);}
-.cal-rate{position:absolute;bottom:3px;right:4px;font-size:8px;color:var(--text3);font-weight:700;}
 .bchip{display:block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;
   margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   max-width:100%;cursor:pointer;line-height:1.6;transition:transform .1s;}
@@ -955,12 +954,8 @@ function renderCalendar(){
       const unitTag=S.currentUnit==='ALL'?`<span class="chip-amt" style="background:rgba(0,0,0,.2)">${b.unitId}</span>`:'';
       chips+=`<span class="bchip gc${ci_}" onclick="event.stopPropagation();openReceipt('${b.id}')">${lbl}${amtTag}${unitTag}</span>`;
     });
-    // rate from first active unit
-    const u0=S.currentUnit==='ALL'?(S.units[0]||{}):getUnit(S.currentUnit);
-    const rate=isWe?(u0.weekendRate||3500):(u0.weekdayRate||3000);
     cells+=`<div class="cal-cell${isToday?' today':''}${isWe?' we-cell':''}" onclick="openNewBookingModalDate('${ds}')">
       <div class="dnum">${d}</div>${chips}
-      <div class="cal-rate">₱${rate.toLocaleString()}</div>
     </div>`;
   }
   const rem=(7-(last.getDay()+1)%7)%7;
@@ -1071,7 +1066,26 @@ function saveBk(){
   if(!name||!contact||!checkin||!checkout){toast('Please fill required fields.');return;}
   const start=new Date(checkin),end=new Date(checkout);
   if(end<=start){toast('Check-out must be after check-in.');return;}
-  const extras=getSelectedExtras();
+  // ---- Double-booking check ----
+  // A booking occupies from 14:00 on checkin date to 12:00 on checkout date.
+  // Two stays conflict if one's check-in is strictly before the other's check-out AND
+  // the other's check-in is strictly before the first's check-out.
+  // We compare at date level: conflict if checkin < other.checkout AND other.checkin < checkout
+  const conflict=S.bookings.find(b=>{
+    if(b.status==='cancelled') return false;  // cancelled bookings don't block
+    if(b.unitId!==unitId) return false;       // different unit, no conflict
+    if(id && b.id===id) return false;         // same booking being edited
+    // Overlap: new checkin < existing checkout AND existing checkin < new checkout
+    // Since checkout is 12pm and checkin is 2pm on the SAME day, two consecutive
+    // bookings (checkout day N = checkin day N) do NOT conflict (12pm < 2pm).
+    // We treat checkout date as end-of-morning and checkin date as afternoon.
+    // So: conflict only when checkin < other.checkout (strictly) AND other.checkin < checkout (strictly)
+    return checkin < b.checkout && b.checkin < checkout;
+  });
+  if(conflict){
+    toast(`⛔ Double booking! Unit ${unitId} is already booked by ${conflict.name} (${conflict.checkin} → ${conflict.checkout}).`);
+    return;
+  }  const extras=getSelectedExtras();
   const nights=Math.round((end-start)/86400000);
   let base=0;
   for(let i=0;i<nights;i++){
