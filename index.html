@@ -1451,14 +1451,3 @@ init();
 </script>
 </body>
 </html>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('✅ SW registered'))
-      .catch(err => console.log('❌ SW registration failed'));
-  }
-  // Initialize app
-  window.addEventListener('load', () => {
-    load(); applyTheme(); renderUnitPills(); renderStats();
-    renderCalendar(); renderBkTable(); renderFinances(); renderSettings();
-  });
